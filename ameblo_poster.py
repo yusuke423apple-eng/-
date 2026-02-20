@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import google.generativeai as genai
 from playwright.async_api import async_playwright, Page, Browser, TimeoutError as PlaywrightTimeout
 
 
@@ -40,6 +41,8 @@ def load_config(config_path: str = "config.json") -> dict:
         config["username"] = os.environ["AMEBLO_USER"]
     if os.environ.get("AMEBLO_PASS"):
         config["password"] = os.environ["AMEBLO_PASS"]
+    if os.environ.get("GEMINI_API_KEY"):
+        config["gemini_api_key"] = os.environ["GEMINI_API_KEY"]
 
     return config
 
@@ -48,6 +51,30 @@ def read_file_content(path: str) -> str:
     """ファイルからテキストを読み込む。"""
     with open(path, encoding="utf-8") as f:
         return f.read()
+
+
+def generate_content_with_gemini(
+    prompt: str,
+    api_key: str,
+    model: str = "gemini-1.5-flash",
+) -> str:
+    """Gemini API を使ってブログ本文を生成する。
+
+    Args:
+        prompt: 生成指示プロンプト
+        api_key: Gemini API キー
+        model: 使用するモデル名 (デフォルト: gemini-1.5-flash)
+
+    Returns:
+        生成されたテキスト
+    """
+    genai.configure(api_key=api_key)
+    gemini_model = genai.GenerativeModel(model)
+    print(f"[INFO] Gemini ({model}) でコンテンツを生成中...")
+    response = gemini_model.generate_content(prompt)
+    text = response.text
+    print(f"[INFO] Gemini 生成完了 ({len(text)} 文字)")
+    return text
 
 
 # ─────────────────────────────────────────────
@@ -296,13 +323,29 @@ async def async_main(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # Gemini API キーの解決
+    gemini_api_key = args.gemini_api_key or config.get("gemini_api_key", "") or os.environ.get("GEMINI_API_KEY", "")
+
     # 本文の取得
     if args.body_file:
         body = read_file_content(args.body_file)
     elif args.body:
         body = args.body
+    elif args.gemini_prompt:
+        if not gemini_api_key:
+            print(
+                "[ERROR] Gemini API キーを指定してください。\n"
+                "  --gemini-api-key オプション、config.json の gemini_api_key、"
+                "または環境変数 GEMINI_API_KEY を使用してください。"
+            )
+            return 1
+        body = generate_content_with_gemini(
+            prompt=args.gemini_prompt,
+            api_key=gemini_api_key,
+            model=args.gemini_model,
+        )
     else:
-        print("[ERROR] 本文を --body または --body-file で指定してください。")
+        print("[ERROR] 本文を --body、--body-file、または --gemini-prompt で指定してください。")
         return 1
 
     # 画像リスト
@@ -342,6 +385,15 @@ def main():
   # 画像付き投稿
   python ameblo_poster.py --title "旅行記" --body "楽しかった！" \\
       --images photo1.jpg photo2.jpg
+
+  # Gemini AI で本文を自動生成して投稿
+  python ameblo_poster.py --title "今日のカフェ巡り" \\
+      --gemini-prompt "東京のおしゃれなカフェを紹介するブログ記事を書いてください。"
+
+  # Gemini モデルを指定して生成
+  python ameblo_poster.py --title "AI近況" \\
+      --gemini-prompt "最新の AI トレンドについて日本語で書いてください。" \\
+      --gemini-model "gemini-1.5-pro"
 """,
     )
 
@@ -361,6 +413,25 @@ def main():
     )
     content.add_argument(
         "--draft", "-d", action="store_true", help="下書き保存する (デフォルト: 公開投稿)"
+    )
+
+    # Gemini AI
+    gemini = parser.add_argument_group("Gemini AI (本文自動生成)")
+    gemini.add_argument(
+        "--gemini-prompt", "-g",
+        metavar="PROMPT",
+        help="Gemini AI に渡すプロンプト。指定すると --body / --body-file の代わりに本文を自動生成します。",
+    )
+    gemini.add_argument(
+        "--gemini-api-key",
+        metavar="KEY",
+        help="Gemini API キー (省略時は config.json の gemini_api_key / 環境変数 GEMINI_API_KEY)",
+    )
+    gemini.add_argument(
+        "--gemini-model",
+        metavar="MODEL",
+        default="gemini-1.5-flash",
+        help="使用する Gemini モデル名 (デフォルト: gemini-1.5-flash)",
     )
 
     # その他
