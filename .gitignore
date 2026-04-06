@@ -5,6 +5,10 @@ config.json
 # スクリーンショット (デバッグ用出力)
 *.png
 
+# 毎日の言葉セレクター (実行時生成ファイル)
+daily_wisdom.log
+today_context.txt
+
 # Python
 __pycache__/
 *.py[cod]
