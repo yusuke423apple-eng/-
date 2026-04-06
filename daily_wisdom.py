@@ -271,12 +271,14 @@ def main():
         w = WISDOM_LIST[idx]
         wisdom = {"no": w["no"], "text": w["text"], "reason": ""}
     else:
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not api_key:
-            print("[ERROR] ANTHROPIC_API_KEY 環境変数を設定してください。")
-            print("        APIなしで実行するには --no-api オプションを使用してください。")
-            sys.exit(1)
-        wisdom = select_wisdom(context=args.context, ameblo_recent=ameblo_text)
+        try:
+            wisdom = select_wisdom(context=args.context, ameblo_recent=ameblo_text)
+        except Exception as e:
+            print(f"[WARN] Claude API 呼び出し失敗: {e}")
+            print("[INFO] 日付ベースのフォールバックモードで実行します")
+            idx = date.today().toordinal() % len(WISDOM_LIST)
+            w = WISDOM_LIST[idx]
+            wisdom = {"no": w["no"], "text": w["text"], "reason": ""}
 
     print_daily_wisdom(wisdom)
 
