@@ -8,6 +8,7 @@ config.json
 # 毎日の言葉セレクター (実行時生成ファイル)
 daily_wisdom.log
 today_context.txt
+wisdom_scheduler.pid
 
 # Python
 __pycache__/
