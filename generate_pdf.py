@@ -238,61 +238,104 @@ add_note(pdf,
 # ── 5. SWOT ──────────────────────────────────────────────────
 add_section_title(pdf, "5. SWOT分析")
 
-left_x = 15
-right_x = 110
-cell_w = 90
-row_h = 7
+swot_data = [
+    {
+        "title": "強み (Strengths)",
+        "title_bg": (30, 90, 160),
+        "body_bg": (235, 242, 255),
+        "items": [
+            "197店舗・口コミ☆4.90の実績ブランド",
+            "手技ベースでHIFU規制の影響ゼロ",
+            "エアトリ傘下で集客基盤が強化",
+            "サブスクモデルで月次収益が安定",
+            "オーナーの安定収入でリスク耐性あり",
+        ],
+    },
+    {
+        "title": "弱み (Weaknesses)",
+        "title_bg": (200, 60, 60),
+        "body_bg": (255, 240, 240),
+        "items": [
+            "施術士1名体制 → 離職即廃業リスク",
+            "オーナーが平日日中不在",
+            "本部設立4.5年で長期実績なし",
+            "固定ロイヤリティで赤字時の負担大",
+            "初期費用が過少見積もりの可能性",
+        ],
+    },
+    {
+        "title": "機会 (Opportunities)",
+        "title_bg": (30, 140, 80),
+        "body_bg": (235, 255, 242),
+        "items": [
+            "HIFU禁止で手技系小顔需要が流入",
+            "競合サロン淘汰後の市場シェア獲得",
+            "エアトリのマーケ・集客支援",
+            "高所得層が多いエリアへの訴求",
+        ],
+    },
+    {
+        "title": "脅威 (Threats)",
+        "title_bg": (180, 120, 30),
+        "body_bg": (255, 248, 230),
+        "items": [
+            "エステ市場の長期縮小トレンド",
+            "エアトリ買収後のFC条件変更",
+            "美容クリニック（医療小顔）との競合",
+            "施術士採用・定着の難化",
+        ],
+    },
+]
 
-def swot_box(pdf, title, items, x, y, bg_color, title_color=(255,255,255)):
-    pdf.set_xy(x, y)
-    pdf.set_fill_color(*bg_color)
-    pdf.set_text_color(*title_color)
-    pdf.set_font("ja", "B", 9)
-    pdf.cell(cell_w, 7, f"  {title}", border=1, fill=True,
-             new_x=XPos.RIGHT, new_y=YPos.TMARGIN)
-    pdf.ln(7)
-    pdf.set_text_color(30, 30, 30)
-    pdf.set_font("ja", "", 8)
-    pdf.set_fill_color(245, 248, 255) if bg_color[2] > 150 else pdf.set_fill_color(255, 248, 245)
-    for item in items:
+full_w = pdf.w - pdf.l_margin - pdf.r_margin
+col_w = full_w / 2 - 1
+
+for i in range(0, 4, 2):
+    left  = swot_data[i]
+    right = swot_data[i + 1]
+
+    # measure heights: title(7) + items*6 + bottom_pad(2)
+    left_h  = 7 + len(left["items"])  * 6 + 2
+    right_h = 7 + len(right["items"]) * 6 + 2
+    box_h   = max(left_h, right_h)
+
+    start_y = pdf.get_y()
+
+    for col_idx, box in enumerate([left, right]):
+        x = pdf.l_margin + col_idx * (col_w + 2)
+        y = start_y
+
+        # title bar
+        pdf.set_xy(x, y)
+        pdf.set_fill_color(*box["title_bg"])
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("ja", "B", 9)
+        pdf.cell(col_w, 7, f"  {box['title']}", border=1, fill=True,
+                 new_x=XPos.LEFT, new_y=YPos.NEXT)
+
+        # body rows
+        pdf.set_fill_color(*box["body_bg"])
+        pdf.set_text_color(30, 30, 30)
+        pdf.set_font("ja", "", 8)
+        for item in box["items"]:
+            pdf.set_x(x)
+            pdf.cell(col_w, 6, f"  ・{item}", border="LR", fill=True,
+                     new_x=XPos.LEFT, new_y=YPos.NEXT)
+
+        # fill remaining height to align columns
+        drawn_h = 7 + len(box["items"]) * 6
+        remaining = box_h - drawn_h
+        if remaining > 0:
+            pdf.set_x(x)
+            pdf.cell(col_w, remaining, "", border="LR", fill=True,
+                     new_x=XPos.LEFT, new_y=YPos.NEXT)
+
+        # bottom border
         pdf.set_x(x)
-        pdf.multi_cell(cell_w, 6, f"  ・{item}", border="LR", fill=True,
-                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.set_x(x)
-    pdf.cell(cell_w, 0, "", border="LRB")
-    pdf.ln(3)
+        pdf.cell(col_w, 0, "", border="B",
+                 new_x=XPos.LEFT, new_y=YPos.NEXT)
 
-cy = pdf.get_y() + 2
-swot_box(pdf, "強み (Strengths)", [
-    "197店舗・口コミ☆4.90の実績ブランド",
-    "手技ベースでHIFU規制の影響ゼロ",
-    "エアトリ傘下で集客基盤が強化",
-    "サブスクモデルで月次収益が安定",
-    "オーナーの安定収入でリスク耐性あり",
-], left_x, cy, (30, 90, 160))
-
-swot_box(pdf, "弱み (Weaknesses)", [
-    "施術士1名体制 → 離職即廃業リスク",
-    "オーナーが平日日中不在",
-    "本部設立4.5年で長期実績なし",
-    "固定ロイヤリティで赤字時の負担大",
-    "初期費用が過少見積もりの可能性",
-], right_x, cy, (200, 60, 60))
-
-cy2 = pdf.get_y() + 2
-swot_box(pdf, "機会 (Opportunities)", [
-    "HIFU禁止で手技系小顔需要が流入",
-    "競合サロン淘汰後の市場シェア獲得",
-    "エアトリのマーケ・集客支援",
-    "高所得層が多いエリアへの訴求",
-], left_x, cy2, (30, 140, 80))
-
-swot_box(pdf, "脅威 (Threats)", [
-    "エステ市場の長期縮小トレンド",
-    "エアトリ買収後のFC条件変更",
-    "美容クリニック（医療小顔）との競合",
-    "施術士採用・定着の難化",
-], right_x, cy2, (180, 120, 30))
+    pdf.set_y(start_y + box_h + 3)
 
 # ── 6. 総合判定 ──────────────────────────────────────────────
 pdf.add_page()
